@@ -3,11 +3,23 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <base href="https://lalostatic.github.io/INSPECTA-1.2/" />
     <title>INSPECTA 1.2 — patio, M&R y pintura</title>
     <meta
       name="description"
       content="Sistema de patio de contenedores. Cada empresa tiene su propia base. Mapa de puntos, M&R y pintura."
     />
+    <meta property="og:title" content="INSPECTA 1.2" />
+    <meta
+      property="og:description"
+      content="Patio, taller M&R y pintura. Una base por empresa."
+    />
+    <meta
+      property="og:image"
+      content="https://lalostatic.github.io/INSPECTA-1.2/assets/login.jpg"
+    />
+    <meta property="og:url" content="https://lalostatic.github.io/INSPECTA-1.2/" />
+    <meta property="og:type" content="website" />
     <link rel="icon" type="image/svg+xml" href="favicon.svg" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -37,7 +49,7 @@
         font-family: "IBM Plex Sans", system-ui, sans-serif;
         line-height: 1.5;
       }
-      img { max-width: 100%; display: block; }
+      img { max-width: 100%; display: block; height: auto; background: var(--navy-deep); }
       a { color: inherit; }
       .display {
         font-family: "Barlow Condensed", sans-serif;
@@ -69,7 +81,7 @@
       }
       .hero img.bg {
         position: absolute; inset: 0; width: 100%; height: 100%;
-        object-fit: cover; opacity: 0.55;
+        object-fit: cover; object-position: center top; opacity: 0.7;
       }
       .hero .veil {
         position: absolute; inset: 0;
@@ -116,7 +128,7 @@
         border-radius: 12px; overflow: hidden; border: 1px solid var(--line);
         box-shadow: 0 18px 40px -24px rgba(14,36,51,0.45); background: var(--navy);
       }
-      .shot img { width: 100%; height: auto; }
+      .shot img { width: 100%; height: auto; aspect-ratio: 16 / 10; object-fit: cover; object-position: top center; }
       .shot figcaption {
         padding: 0.7rem 1rem; font-size: 0.8rem; color: var(--steel);
         background: var(--card); border-top: 1px solid var(--line);
@@ -127,7 +139,9 @@
       .phone {
         border-radius: 28px; overflow: hidden; border: 8px solid var(--navy);
         box-shadow: 0 18px 40px -20px rgba(14,36,51,0.5);
+        background: var(--navy);
       }
+      .phone img { width: 100%; height: auto; aspect-ratio: 390 / 844; object-fit: cover; object-position: top center; }
       .arch {
         display: grid; gap: 0.75rem; grid-template-columns: 1fr 1fr;
       }
@@ -179,7 +193,7 @@
     </header>
 
     <section class="hero" id="inicio">
-      <img class="bg" src="assets/login.jpg" alt="Inicio de sesión INSPECTA sobre un patio de contenedores" />
+      <img class="bg" src="assets/login.jpg" width="1440" height="900" alt="Inicio de sesión INSPECTA sobre un patio de contenedores" />
       <div class="veil"></div>
       <div class="wrap copy">
         <p class="kicker">Versión 1.2</p>
@@ -224,31 +238,31 @@
         <p class="sub">Capturas de la aplicación en operación. Cerlan y Contri no mezclan folios.</p>
         <div class="shots">
           <figure class="shot wide">
-            <img src="assets/mapa.jpg" alt="Mapa de puntos del contenedor" />
+            <img src="assets/mapa.jpg" width="1440" height="900" alt="Mapa de puntos del contenedor" />
             <figcaption>Mapa de puntos. Al tocar un punto se abre la cámara; el daño se anota después, si aplica.</figcaption>
           </figure>
           <figure class="shot">
-            <img src="assets/patio.jpg" alt="Inicio del patio Cerlan" />
+            <img src="assets/patio.jpg" width="1440" height="900" alt="Inicio del patio Cerlan" />
             <figcaption>Inicio del patio — inspección, M&R y pintura de esa empresa.</figcaption>
           </figure>
           <figure class="shot">
-            <img src="assets/inspecciones.jpg" alt="Lista de inspecciones" />
+            <img src="assets/inspecciones.jpg" width="1440" height="900" alt="Lista de inspecciones" />
             <figcaption>Folios de inspección. Número, fotos y daño si lo hay.</figcaption>
           </figure>
           <figure class="shot">
-            <img src="assets/mr.jpg" alt="Reportes de trabajo M&R" />
+            <img src="assets/mr.jpg" width="1440" height="900" alt="Reportes de trabajo M&R" />
             <figcaption>Reporte de trabajo del taller.</figcaption>
           </figure>
           <figure class="shot">
-            <img src="assets/pintura.jpg" alt="Entrada de almacén" />
+            <img src="assets/pintura.jpg" width="1440" height="900" alt="Entrada de almacén" />
             <figcaption>Entrada de almacén / pintura.</figcaption>
           </figure>
           <figure class="shot">
-            <img src="assets/equipo.jpg" alt="Equipo y módulos" />
+            <img src="assets/equipo.jpg" width="1440" height="900" alt="Equipo y módulos" />
             <figcaption>Equipo: el administrador da de alta a su gente. No hay registro público.</figcaption>
           </figure>
           <figure class="shot">
-            <img src="assets/autorizar.jpg" alt="Consola del desarrollador" />
+            <img src="assets/autorizar.jpg" width="1440" height="900" alt="Consola del desarrollador" />
             <figcaption>El desarrollador autoriza la empresa, el dominio y el administrador.</figcaption>
           </figure>
         </div>
@@ -262,8 +276,8 @@
           <h2>También en el teléfono.</h2>
           <p class="sub">Inicio de sesión con la foto del puerto. Correo y contraseña. Entrar.</p>
           <div class="phones">
-            <div class="phone"><img src="assets/login-mobile.jpg" alt="Login en teléfono" /></div>
-            <div class="phone"><img src="assets/patio-mobile.jpg" alt="Patio en teléfono" /></div>
+            <div class="phone"><img src="assets/login-mobile.jpg" width="390" height="844" alt="Login en teléfono" /></div>
+            <div class="phone"><img src="assets/patio-mobile.jpg" width="390" height="844" alt="Patio en teléfono" /></div>
           </div>
         </div>
         <div>
@@ -303,7 +317,7 @@
           </div>
         </div>
         <p class="sub" style="margin-top: 1.5rem">
-          GitHub Pages muestra este sitio de producto. El patio con login, cámara y cobro se despliega en servidor (Postgres + auth). El código listo para producción está en el repositorio.
+          Esta página es el sitio de producto (capturas reales). El patio con login, cámara y cobro se despliega en un servidor con Postgres. El código listo para producción está en el repositorio.
         </p>
         <a class="btn btn-teal" href="https://github.com/lalostatic/INSPECTA-1.2">Repositorio INSPECTA-1.2</a>
       </div>
