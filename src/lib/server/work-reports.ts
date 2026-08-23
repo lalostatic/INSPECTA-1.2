@@ -6,6 +6,7 @@ import { normalizeContainer } from "@/lib/iso6346";
 import { canWorkMr } from "@/lib/roles";
 import type { WorkReportDetail, WorkReportLine, WorkReportListItem } from "@/lib/types";
 import { requireMembership } from "@/lib/server/tenant";
+import { tenantTables } from "@/lib/server/tenant-schema";
 
 type HeadRow = {
   id: string;
@@ -64,16 +65,16 @@ export const listWorkReports = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
   .handler(async ({ context }): Promise<WorkReportListItem[]> => {
     const m = await requireMembership(context.userId);
+    const T = tenantTables(m.dbSchema);
     const sql = await getSql();
-    const rows = await sql<HeadRow>`
-      select r.id, r.report_date, r.area, r.technicians, r.supervisor, r.status,
-             r.notes, r.created_at,
-             (select count(*)::int from work_report_lines l where l.report_id = r.id) as line_count
-      from work_reports r
-      where r.org_id = ${m.orgId}
-      order by r.report_date desc, r.created_at desc
-      limit 200
-    `;
+    const rows = await sql.query<HeadRow>(
+      `select r.id, r.report_date, r.area, r.technicians, r.supervisor, r.status,
+              r.notes, r.created_at,
+              (select count(*)::int from ${T.work_report_lines} l where l.report_id = r.id) as line_count
+       from ${T.work_reports} r
+       order by r.report_date desc, r.created_at desc
+       limit 200`,
+    );
     return rows.map(mapHead);
   });
 
@@ -82,23 +83,26 @@ export const getWorkReport = createServerFn({ method: "GET" })
   .validator((input: unknown) => z.object({ id: z.string() }).parse(input))
   .handler(async ({ context, data }): Promise<WorkReportDetail | null> => {
     const m = await requireMembership(context.userId);
+    const T = tenantTables(m.dbSchema);
     const sql = await getSql();
-    const heads = await sql<HeadRow>`
-      select r.id, r.report_date, r.area, r.technicians, r.supervisor, r.status,
-             r.notes, r.created_at,
-             (select count(*)::int from work_report_lines l where l.report_id = r.id) as line_count
-      from work_reports r
-      where r.id = ${data.id} and r.org_id = ${m.orgId}
-    `;
+    const heads = await sql.query<HeadRow>(
+      `select r.id, r.report_date, r.area, r.technicians, r.supervisor, r.status,
+              r.notes, r.created_at,
+              (select count(*)::int from ${T.work_report_lines} l where l.report_id = r.id) as line_count
+       from ${T.work_reports} r
+       where r.id = $1`,
+      [data.id],
+    );
     const head = heads[0];
     if (!head) return null;
-    const lines = await sql<LineRow>`
-      select id, seq, container_no, class_code, size_code, naviera, description,
-             loc_code, unknown_ownership, missing_label
-      from work_report_lines
-      where report_id = ${data.id} and org_id = ${m.orgId}
-      order by seq
-    `;
+    const lines = await sql.query<LineRow>(
+      `select id, seq, container_no, class_code, size_code, naviera, description,
+              loc_code, unknown_ownership, missing_label
+       from ${T.work_report_lines}
+       where report_id = $1
+       order by seq`,
+      [data.id],
+    );
     return { ...mapHead(head), notes: head.notes, lines: lines.map(mapLine) };
   });
 
@@ -128,29 +132,36 @@ export const createWorkReport = createServerFn({ method: "POST" })
   .handler(async ({ context, data }) => {
     const m = await requireMembership(context.userId);
     if (!canWorkMr(m.role)) throw new Error("Su perfil no captura reportes de taller");
+    const T = tenantTables(m.dbSchema);
     const sql = await getSql();
     const id = crypto.randomUUID();
-    await sql`
-      insert into work_reports (
-        id, org_id, report_date, area, technicians, supervisor, notes, status, created_by
-      ) values (
-        ${id}, ${m.orgId}, ${data.reportDate}, ${data.area}, ${data.technicians},
-        ${data.supervisor}, ${data.notes}, ${"abierto"}, ${context.userId}
-      )
-    `;
+    await sql.query(
+      `insert into ${T.work_reports} (
+        id, report_date, area, technicians, supervisor, notes, status, created_by
+      ) values ($1,$2,$3,$4,$5,$6,$7,$8)`,
+      [id, data.reportDate, data.area, data.technicians, data.supervisor, data.notes, "abierto", context.userId],
+    );
     let seq = 1;
     for (const line of data.lines) {
-      await sql`
-        insert into work_report_lines (
-          id, report_id, org_id, seq, container_no, class_code, size_code, naviera,
+      await sql.query(
+        `insert into ${T.work_report_lines} (
+          id, report_id, seq, container_no, class_code, size_code, naviera,
           description, loc_code, unknown_ownership, missing_label
-        ) values (
-          ${crypto.randomUUID()}, ${id}, ${m.orgId}, ${seq},
-          ${normalizeContainer(line.containerNo)}, ${line.classCode}, ${line.sizeCode},
-          ${line.naviera}, ${line.description}, ${line.locCode},
-          ${line.unknownOwnership}, ${line.missingLabel}
-        )
-      `;
+        ) values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
+        [
+          crypto.randomUUID(),
+          id,
+          seq,
+          normalizeContainer(line.containerNo),
+          line.classCode,
+          line.sizeCode,
+          line.naviera,
+          line.description,
+          line.locCode,
+          line.unknownOwnership,
+          line.missingLabel,
+        ],
+      );
       seq += 1;
     }
     return { id };
@@ -164,12 +175,14 @@ export const closeWorkReport = createServerFn({ method: "POST" })
   .handler(async ({ context, data }) => {
     const m = await requireMembership(context.userId);
     if (!canWorkMr(m.role) && m.role !== "office") throw new Error("Sin permiso");
+    const T = tenantTables(m.dbSchema);
     const sql = await getSql();
-    await sql`
-      update work_reports
-      set status = ${"cerrado"},
-          supervisor = case when ${data.supervisor ?? ""} = '' then supervisor else ${data.supervisor ?? ""} end
-      where id = ${data.id} and org_id = ${m.orgId}
-    `;
+    await sql.query(
+      `update ${T.work_reports}
+       set status = $1,
+           supervisor = case when $2 = '' then supervisor else $2 end
+       where id = $3`,
+      ["cerrado", data.supervisor ?? "", data.id],
+    );
     return { ok: true };
   });

@@ -6,6 +6,7 @@ import { normalizeContainer } from "@/lib/iso6346";
 import { canCreateInspection } from "@/lib/roles";
 import type { Finding, InspectionDetail, InspectionListItem } from "@/lib/types";
 import { requireMembership } from "@/lib/server/tenant";
+import { tenantTables, type TenantTables } from "@/lib/server/tenant-schema";
 
 type HeadRow = {
   id: string;
@@ -44,24 +45,27 @@ function mapList(r: HeadRow): InspectionListItem {
   };
 }
 
-const LIST = `select i.id, i.user_id, i.container_no, i.naviera, i.size_code, i.class_code, i.ownership,
+function listSql(T: TenantTables) {
+  return `select i.id, i.user_id, i.container_no, i.naviera, i.size_code, i.class_code, i.ownership,
   i.inspector_name, i.status, i.inspected_at, i.inspection_type, i.location_name,
   i.work_order, i.notes, i.missing_label,
-  (select count(*)::int from findings f where f.inspection_id = i.id) as finding_count,
-  (select f.damage from findings f where f.inspection_id = i.id order by f.sort_order limit 1) as primary_damage
-  from inspections i`;
+  (select count(*)::int from ${T.findings} f where f.inspection_id = i.id) as finding_count,
+  (select f.damage from ${T.findings} f where f.inspection_id = i.id order by f.sort_order limit 1) as primary_damage
+  from ${T.inspections} i`;
+}
 
 export const listInspections = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
   .handler(async ({ context }): Promise<InspectionListItem[]> => {
     const m = await requireMembership(context.userId);
+    const T = tenantTables(m.dbSchema);
     const sql = await getSql();
     const mine = m.role === "inspector" ? context.userId : null;
     const rows = await sql.query<HeadRow>(
-      `${LIST}
-       where i.org_id = $1 and ($2::text is null or i.user_id = $2)
+      `${listSql(T)}
+       where ($1::text is null or i.user_id = $1)
        order by i.inspected_at desc limit 300`,
-      [m.orgId, mine],
+      [mine],
     );
     return rows.map(mapList);
   });
@@ -71,22 +75,30 @@ export const getInspection = createServerFn({ method: "GET" })
   .validator((input: unknown) => z.object({ id: z.string() }).parse(input))
   .handler(async ({ context, data }): Promise<InspectionDetail | null> => {
     const m = await requireMembership(context.userId);
+    const T = tenantTables(m.dbSchema);
     const sql = await getSql();
-    const rows = await sql.query<HeadRow>(`${LIST} where i.id = $1 and i.org_id = $2`, [data.id, m.orgId]);
+    const rows = await sql.query<HeadRow>(`${listSql(T)} where i.id = $1`, [data.id]);
     const head = rows[0];
     if (!head) return null;
     if (m.role === "inspector" && head.user_id !== context.userId) return null;
-    const findings = await sql<{
-      id: string; component: string; damage: string; repair: string; loc_code: string;
-      point_id: string; side: string;
-    }>`
-      select id, component, damage, repair, loc_code, point_id, side from findings
-      where inspection_id = ${data.id} and org_id = ${m.orgId} order by sort_order
-    `;
-    const photos = await sql<{ id: string; finding_id: string; data_url: string; caption: string }>`
-      select id, finding_id, data_url, caption from photos
-      where inspection_id = ${data.id} and org_id = ${m.orgId} order by sort_order
-    `;
+    const findings = await sql.query<{
+      id: string;
+      component: string;
+      damage: string;
+      repair: string;
+      loc_code: string;
+      point_id: string;
+      side: string;
+    }>(
+      `select id, component, damage, repair, loc_code, point_id, side from ${T.findings}
+       where inspection_id = $1 order by sort_order`,
+      [data.id],
+    );
+    const photos = await sql.query<{ id: string; finding_id: string; data_url: string; caption: string }>(
+      `select id, finding_id, data_url, caption from ${T.photos}
+       where inspection_id = $1 order by sort_order`,
+      [data.id],
+    );
     const by: Record<string, Finding["photos"]> = {};
     for (const p of photos) {
       (by[p.finding_id] ??= []).push({ id: p.id, dataUrl: p.data_url, caption: p.caption });
@@ -130,7 +142,9 @@ const createIn = z.object({
         locCode: z.string().max(12).default(""),
         pointId: z.string().max(24).default(""),
         side: z.string().max(16).default(""),
-        photos: z.array(z.object({ caption: z.string().max(120).default(""), dataUrl: z.string().min(8).max(520_000) })).max(8),
+        photos: z
+          .array(z.object({ caption: z.string().max(120).default(""), dataUrl: z.string().min(8).max(520_000) }))
+          .max(8),
       }),
     )
     .min(1)
@@ -143,34 +157,49 @@ export const createInspection = createServerFn({ method: "POST" })
   .handler(async ({ context, data }) => {
     const m = await requireMembership(context.userId);
     if (!canCreateInspection(m.role)) throw new Error("Su perfil no registra inspecciones");
+    const T = tenantTables(m.dbSchema);
     const sql = await getSql();
     const id = crypto.randomUUID();
     const container = normalizeContainer(data.containerNo);
-    await sql`
-      insert into inspections (
-        id, org_id, user_id, inspector_name, container_no, naviera, size_code, class_code,
+    await sql.query(
+      `insert into ${T.inspections} (
+        id, user_id, inspector_name, container_no, naviera, size_code, class_code,
         ownership, inspection_type, location_name, work_order, status, notes, missing_label
-      ) values (
-        ${id}, ${m.orgId}, ${context.userId}, ${m.displayName || "Inspector"},
-        ${container}, ${data.naviera}, ${data.sizeCode}, ${data.classCode}, ${data.ownership},
-        ${data.inspectionType}, ${data.locationName}, ${data.workOrder}, ${"enviada"},
-        ${data.notes}, ${data.missingLabel}
-      )
-    `;
+      ) values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)`,
+      [
+        id,
+        context.userId,
+        m.displayName || "Inspector",
+        container,
+        data.naviera,
+        data.sizeCode,
+        data.classCode,
+        data.ownership,
+        data.inspectionType,
+        data.locationName,
+        data.workOrder,
+        "enviada",
+        data.notes,
+        data.missingLabel,
+      ],
+    );
     let fi = 0;
     for (const f of data.findings) {
       const fid = crypto.randomUUID();
-      await sql`
-        insert into findings (id, inspection_id, org_id, component, damage, repair, loc_code, point_id, side, sort_order)
-        values (${fid}, ${id}, ${m.orgId}, ${f.component}, ${f.damage}, ${f.repair}, ${f.locCode}, ${f.pointId}, ${f.side}, ${fi})
-      `;
+      await sql.query(
+        `insert into ${T.findings} (
+          id, inspection_id, component, damage, repair, loc_code, point_id, side, sort_order
+        ) values ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+        [fid, id, f.component, f.damage, f.repair, f.locCode, f.pointId, f.side, fi],
+      );
       let pi = 0;
       for (const p of f.photos) {
         if (!p.dataUrl.startsWith("data:image/")) throw new Error("Foto inválida");
-        await sql`
-          insert into photos (id, finding_id, inspection_id, org_id, caption, data_url, sort_order)
-          values (${crypto.randomUUID()}, ${fid}, ${id}, ${m.orgId}, ${p.caption || f.damage}, ${p.dataUrl}, ${pi})
-        `;
+        await sql.query(
+          `insert into ${T.photos} (id, finding_id, inspection_id, caption, data_url, sort_order)
+           values ($1,$2,$3,$4,$5,$6)`,
+          [crypto.randomUUID(), fid, id, p.caption || f.damage, p.dataUrl, pi],
+        );
         pi += 1;
       }
       fi += 1;

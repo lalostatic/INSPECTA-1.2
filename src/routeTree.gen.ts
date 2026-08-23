@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AlmacenRouteImport } from './routes/almacen'
+import { Route as AutorizarRouteImport } from './routes/autorizar'
 import { Route as EquipoRouteImport } from './routes/equipo'
 import { Route as InspeccionesRouteImport } from './routes/inspecciones'
 import { Route as LoginRouteImport } from './routes/login'
@@ -37,6 +38,11 @@ const IndexRoute = IndexRouteImport.update({
 const AlmacenRoute = AlmacenRouteImport.update({
   id: '/almacen',
   path: '/almacen',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AutorizarRoute = AutorizarRouteImport.update({
+  id: '/autorizar',
+  path: '/autorizar',
   getParentRoute: () => rootRouteImport,
 } as any)
 const EquipoRoute = EquipoRouteImport.update({
@@ -128,6 +134,7 @@ const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/almacen': typeof AlmacenRouteWithChildren
+  '/autorizar': typeof AutorizarRoute
   '/equipo': typeof EquipoRoute
   '/inspecciones': typeof InspeccionesRouteWithChildren
   '/login': typeof LoginRoute
@@ -148,6 +155,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/autorizar': typeof AutorizarRoute
   '/equipo': typeof EquipoRoute
   '/login': typeof LoginRoute
   '/nueva': typeof NuevaRoute
@@ -168,6 +176,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/almacen': typeof AlmacenRouteWithChildren
+  '/autorizar': typeof AutorizarRoute
   '/equipo': typeof EquipoRoute
   '/inspecciones': typeof InspeccionesRouteWithChildren
   '/login': typeof LoginRoute
@@ -191,6 +200,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/almacen'
+    | '/autorizar'
     | '/equipo'
     | '/inspecciones'
     | '/login'
@@ -211,6 +221,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/autorizar'
     | '/equipo'
     | '/login'
     | '/nueva'
@@ -230,6 +241,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/almacen'
+    | '/autorizar'
     | '/equipo'
     | '/inspecciones'
     | '/login'
@@ -252,6 +264,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AlmacenRoute: typeof AlmacenRouteWithChildren
+  AutorizarRoute: typeof AutorizarRoute
   EquipoRoute: typeof EquipoRoute
   InspeccionesRoute: typeof InspeccionesRouteWithChildren
   LoginRoute: typeof LoginRoute
@@ -277,6 +290,13 @@ declare module '@tanstack/react-router' {
       path: '/almacen'
       fullPath: '/almacen'
       preLoaderRoute: typeof AlmacenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/autorizar': {
+      id: '/autorizar'
+      path: '/autorizar'
+      fullPath: '/autorizar'
+      preLoaderRoute: typeof AutorizarRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/equipo': {
@@ -447,6 +467,7 @@ const MrRouteWithChildren = MrRoute._addFileChildren(MrRouteChildren)
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AlmacenRoute: AlmacenRouteWithChildren,
+  AutorizarRoute: AutorizarRoute,
   EquipoRoute: EquipoRoute,
   InspeccionesRoute: InspeccionesRouteWithChildren,
   LoginRoute: LoginRoute,

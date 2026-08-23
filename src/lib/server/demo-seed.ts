@@ -1,45 +1,18 @@
 import { createServerFn } from "@tanstack/react-start";
-import { hashPassword } from "better-auth/crypto";
 import { DEMO_ORGS, DEMO_PASSWORD, demoEmail, type DemoOrg } from "@/lib/demo-accounts";
+import { DEVELOPER_EMAIL } from "@/lib/developer";
 import { addDays, addMonths } from "@/lib/billing";
 import { MODULES, type Role } from "@/lib/catalog";
 import { getSql } from "@/lib/db";
+import { createCredentialUser } from "@/lib/server/accounts";
 import { setOrgPeriod, stampNewOrgBilling } from "@/lib/server/billing";
 import { seedOrgIfEmpty } from "@/lib/server/seed";
+import { ensureAllTenants, ensureOrgTenant, schemaNameFromOrgId } from "@/lib/server/tenant-schema";
 import { todayISO } from "@/lib/utils";
 
 const globalRef = globalThis as typeof globalThis & {
   __inspectaDemoSeed__?: Promise<void>;
 };
-
-async function insertCredentialUser(opts: {
-  name: string;
-  email: string;
-  password: string;
-}): Promise<string> {
-  const sql = await getSql();
-  const email = opts.email.trim().toLowerCase();
-  const existing = await sql<{ id: string }>`
-    select id from "user" where email = ${email} limit 1
-  `;
-  if (existing[0]) return existing[0].id;
-
-  const userId = crypto.randomUUID();
-  const hashed = await hashPassword(opts.password);
-  const now = new Date().toISOString();
-  await sql`
-    insert into "user" (id, name, email, "emailVerified", "createdAt", "updatedAt")
-    values (${userId}, ${opts.name}, ${email}, ${true}, ${now}, ${now})
-  `;
-  await sql`
-    insert into "account" (
-      id, "accountId", "providerId", "userId", password, "createdAt", "updatedAt"
-    ) values (
-      ${crypto.randomUUID()}, ${userId}, ${"credential"}, ${userId}, ${hashed}, ${now}, ${now}
-    )
-  `;
-  return userId;
-}
 
 async function ensureDemoOrg(org: DemoOrg, adminUserId: string): Promise<string> {
   const sql = await getSql();
@@ -56,7 +29,10 @@ async function ensureDemoOrg(org: DemoOrg, adminUserId: string): Promise<string>
           name = ${org.name},
           depot = ${org.depot},
           city = ${org.city},
-          invite_code = ${org.inviteCode}
+          invite_code = ${org.inviteCode},
+          authorized = ${true},
+          authorized_by = coalesce(nullif(authorized_by, ''), ${"seed"}),
+          db_schema = coalesce(nullif(db_schema, ''), ${schemaNameFromOrgId(found[0].id)})
       where id = ${found[0].id}
     `;
     for (const mod of MODULES) {
@@ -71,10 +47,12 @@ async function ensureDemoOrg(org: DemoOrg, adminUserId: string): Promise<string>
 
   const id = crypto.randomUUID();
   await sql`
-    insert into organizations (id, slug, name, depot, city, invite_code, email_domain, created_by)
+    insert into organizations (
+      id, slug, name, depot, city, invite_code, email_domain, created_by, authorized, authorized_by, db_schema
+    )
     values (
       ${id}, ${org.slug}, ${org.name}, ${org.depot}, ${org.city},
-      ${org.inviteCode}, ${org.domain}, ${adminUserId}
+      ${org.inviteCode}, ${org.domain}, ${adminUserId}, ${true}, ${"seed"}, ${schemaNameFromOrgId(id)}
     )
     on conflict (slug) do nothing
   `;
@@ -82,6 +60,13 @@ async function ensureDemoOrg(org: DemoOrg, adminUserId: string): Promise<string>
     select id from organizations where slug = ${org.slug} or email_domain = ${org.domain} limit 1
   `;
   const orgId = again[0]?.id ?? id;
+  await sql`
+    update organizations
+    set authorized = ${true},
+        authorized_by = ${"seed"},
+        db_schema = coalesce(nullif(db_schema, ''), ${schemaNameFromOrgId(orgId)})
+    where id = ${orgId}
+  `;
   for (const mod of MODULES) {
     await sql`
       insert into org_modules (org_id, module_key, enabled)
@@ -112,11 +97,16 @@ async function ensureMember(orgId: string, userId: string, name: string, role: R
 export async function seedDemoAccounts() {
   if (!globalRef.__inspectaDemoSeed__) {
     globalRef.__inspectaDemoSeed__ = (async () => {
+      await createCredentialUser({
+        name: "Desarrollador INSPECTA",
+        email: DEVELOPER_EMAIL,
+        password: DEMO_PASSWORD,
+      });
       for (const org of DEMO_ORGS) {
         const ids = new Map<string, string>();
         for (const account of org.accounts) {
           const email = demoEmail(account.local, org.domain);
-          const id = await insertCredentialUser({
+          const { id } = await createCredentialUser({
             name: account.name,
             email,
             password: DEMO_PASSWORD,
@@ -128,6 +118,7 @@ export async function seedDemoAccounts() {
         if (!adminId) throw new Error(`No se pudo crear el administrador de ${org.name}`);
         const orgId = await ensureDemoOrg(org, adminId);
         await applyDemoBilling(orgId, org.billing);
+        await ensureOrgTenant(orgId);
         for (const account of org.accounts) {
           const email = demoEmail(account.local, org.domain);
           const userId = ids.get(email);
@@ -139,6 +130,7 @@ export async function seedDemoAccounts() {
         const inspectorName = org.accounts.find((a) => a.local === "inspector")?.name ?? "Inspector";
         await seedOrgIfEmpty(orgId, inspectorId, inspectorName, org.sample);
       }
+      await ensureAllTenants();
     })().catch((err) => {
       globalRef.__inspectaDemoSeed__ = undefined;
       throw err;

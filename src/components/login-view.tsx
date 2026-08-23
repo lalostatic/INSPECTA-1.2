@@ -26,10 +26,8 @@ function WhatsAppIcon({ className }: { className?: string }) {
 export function LoginView() {
   const { user, isPending } = useCurrentUserState();
   const nav = useNavigate();
-  const [mode, setMode] = useState<"in" | "up">("in");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
@@ -38,13 +36,8 @@ export function LoginView() {
     setError("");
     setBusy(true);
     try {
-      if (mode === "up") {
-        const res = await authClient.signUp.email({ email, password, name });
-        if (res.error) throw new Error(res.error.message || "No se pudo crear la cuenta");
-      } else {
-        const res = await authClient.signIn.email({ email, password });
-        if (res.error) throw new Error(res.error.message || "Correo o contraseña incorrectos");
-      }
+      const res = await authClient.signIn.email({ email, password });
+      if (res.error) throw new Error(res.error.message || "Correo o contraseña incorrectos");
       clearBillingSkip();
       await nav({ to: "/" });
     } catch (err) {
@@ -79,20 +72,7 @@ export function LoginView() {
           onSubmit={(e) => void onSubmit(e)}
           className="mt-8 space-y-3 rounded-xl border border-line bg-card p-6 text-ink shadow-card"
         >
-          <h1 className="font-display text-3xl tracking-wide text-navy">
-            {mode === "up" ? "Crear cuenta" : "Iniciar sesión"}
-          </h1>
-          {mode === "up" ? (
-            <Field label="Nombre">
-              <Input
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                autoComplete="name"
-                required
-                placeholder="Su nombre"
-              />
-            </Field>
-          ) : null}
+          <h1 className="font-display text-3xl tracking-wide text-navy">Iniciar sesión</h1>
           <Field label="Correo">
             <Input
               type="email"
@@ -108,25 +88,15 @@ export function LoginView() {
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              autoComplete={mode === "up" ? "new-password" : "current-password"}
+              autoComplete="current-password"
               required
               minLength={8}
             />
           </Field>
           {error ? <p className="text-sm text-rust">{error}</p> : null}
           <Button type="submit" className="w-full" disabled={busy}>
-            {busy ? "Entrando…" : mode === "up" ? "Crear cuenta" : "Entrar"}
+            {busy ? "Entrando…" : "Entrar"}
           </Button>
-          <button
-            type="button"
-            className="w-full min-h-11 text-center text-sm text-steel hover:text-navy"
-            onClick={() => {
-              setError("");
-              setMode((m) => (m === "in" ? "up" : "in"));
-            }}
-          >
-            {mode === "in" ? "Crear una cuenta" : "Ya tengo cuenta"}
-          </button>
         </form>
       </div>
 

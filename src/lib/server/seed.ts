@@ -1,37 +1,43 @@
-import { getSql } from "@/lib/db";
+import { getSql, type Sql } from "@/lib/db";
+import { ensureOrgTenant, tenantTables, type TenantTables } from "@/lib/server/tenant-schema";
 
-/** Sample rows transcribed from the 22-ago-2026 paper forms. Isolated per org. */
+/** Sample rows transcribed from the 22-ago-2026 paper forms. Isolated per patio database. */
 export async function seedOrgIfEmpty(
   orgId: string,
   userId: string,
   actorName: string,
   sample: "cerlan" | "contri" = "cerlan",
 ) {
+  const schema = await ensureOrgTenant(orgId);
+  const sql = await getSql();
+  const T = tenantTables(schema);
   if (sample === "contri") {
-    await seedContri(orgId, userId, actorName);
+    await seedContri(sql, T, userId, actorName);
     return;
   }
-  await seedCerlan(orgId, userId, actorName);
+  await seedCerlan(sql, T, userId, actorName);
 }
 
-async function seedCerlan(orgId: string, userId: string, actorName: string) {
-  const sql = await getSql();
-  const existing = await sql<{ c: number }>`
-    select count(*)::int as c from work_reports where org_id = ${orgId}
-  `;
+async function seedCerlan(sql: Sql, T: TenantTables, userId: string, actorName: string) {
+  const existing = await sql.query<{ c: number }>(`select count(*)::int as c from ${T.work_reports}`);
   if ((existing[0]?.c ?? 0) > 0) return;
 
   const reportId = crypto.randomUUID();
-  await sql`
-    insert into work_reports (
-      id, org_id, report_date, area, technicians, supervisor, notes, status, created_by
-    ) values (
-      ${reportId}, ${orgId}, ${"2026-08-22"}, ${"MR"},
-      ${"Israel y Luis Angel"}, ${""},
-      ${"Asterisco: contenedores que no dicen si son merchant o carrier; unos no traen etiqueta."},
-      ${"cerrado"}, ${userId}
-    )
-  `;
+  await sql.query(
+    `insert into ${T.work_reports} (
+      id, report_date, area, technicians, supervisor, notes, status, created_by
+    ) values ($1,$2,$3,$4,$5,$6,$7,$8)`,
+    [
+      reportId,
+      "2026-08-22",
+      "MR",
+      "Israel y Luis Angel",
+      "",
+      "Asterisco: contenedores que no dicen si son merchant o carrier; unos no traen etiqueta.",
+      "cerrado",
+      userId,
+    ],
+  );
 
   const mrLines: {
     container: string;
@@ -59,36 +65,41 @@ async function seedCerlan(orgId: string, userId: string, actorName: string) {
 
   let seq = 1;
   for (const line of mrLines) {
-    await sql`
-      insert into work_report_lines (
-        id, report_id, org_id, seq, container_no, class_code, size_code, naviera,
+    await sql.query(
+      `insert into ${T.work_report_lines} (
+        id, report_id, seq, container_no, class_code, size_code, naviera,
         description, loc_code, unknown_ownership, missing_label
-      ) values (
-        ${crypto.randomUUID()}, ${reportId}, ${orgId}, ${seq}, ${line.container},
-        ${"C"}, ${line.size}, ${line.line}, ${line.desc}, ${line.loc},
-        ${line.star}, ${line.star}
-      )
-    `;
+      ) values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
+      [
+        crypto.randomUUID(),
+        reportId,
+        seq,
+        line.container,
+        "C",
+        line.size,
+        line.line,
+        line.desc,
+        line.loc,
+        line.star,
+        line.star,
+      ],
+    );
     seq += 1;
   }
 
   const entryId = crypto.randomUUID();
-  await sql`
-    insert into warehouse_entries (
-      id, org_id, folio, entry_date, location_name, received_from, invoice_ref,
+  await sql.query(
+    `insert into ${T.warehouse_entries} (
+      id, folio, entry_date, location_name, received_from, invoice_ref,
       received_by, notes, created_by
-    ) values (
-      ${entryId}, ${orgId}, ${"5179"}, ${"2026-08-22"}, ${"Cerlan"}, ${""}, ${""},
-      ${"Eduardo"}, ${"Formato de pintores — material + unidades acondicionadas."}, ${userId}
-    )
-  `;
-  await sql`
-    insert into warehouse_materials (
-      id, entry_id, org_id, qty, unit, code, article, seq
-    ) values (
-      ${crypto.randomUUID()}, ${entryId}, ${orgId}, ${19}, ${"LTS"}, ${"9x15"}, ${"perla"}, ${1}
-    )
-  `;
+    ) values ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+    [entryId, "5179", "2026-08-22", "Cerlan", "", "", "Eduardo", "Formato de pintores — material + unidades acondicionadas.", userId],
+  );
+  await sql.query(
+    `insert into ${T.warehouse_materials} (id, entry_id, qty, unit, code, article, seq)
+     values ($1,$2,$3,$4,$5,$6,$7)`,
+    [crypto.randomUUID(), entryId, 19, "LTS", "9x15", "perla", 1],
+  );
   const paintUnits = [
     { no: "HAMU3742306", size: "40HC", line: "HL" },
     { no: "CAIU4809187", size: "40HC", line: "HL" },
@@ -98,60 +109,66 @@ async function seedCerlan(orgId: string, userId: string, actorName: string) {
   ];
   let u = 1;
   for (const unit of paintUnits) {
-    await sql`
-      insert into warehouse_units (
-        id, entry_id, org_id, container_no, unit_code, size_code, naviera, treatment, seq
-      ) values (
-        ${crypto.randomUUID()}, ${entryId}, ${orgId}, ${unit.no}, ${"FX"},
-        ${unit.size}, ${unit.line}, ${"Acond."}, ${u}
-      )
-    `;
+    await sql.query(
+      `insert into ${T.warehouse_units} (
+        id, entry_id, container_no, unit_code, size_code, naviera, treatment, seq
+      ) values ($1,$2,$3,$4,$5,$6,$7,$8)`,
+      [crypto.randomUUID(), entryId, unit.no, "FX", unit.size, unit.line, "Acond.", u],
+    );
     u += 1;
   }
 
   const inspId = crypto.randomUUID();
-  await sql`
-    insert into inspections (
-      id, org_id, user_id, inspector_name, container_no, naviera, size_code, class_code,
+  await sql.query(
+    `insert into ${T.inspections} (
+      id, user_id, inspector_name, container_no, naviera, size_code, class_code,
       ownership, inspection_type, location_name, status, notes, missing_label
-    ) values (
-      ${inspId}, ${orgId}, ${userId}, ${actorName || "Inspector"},
-      ${"HAMU2333567"}, ${"Hapag-Lloyd"}, ${"40HC"}, ${"C"}, ${"carrier"},
-      ${"Inspección Express"}, ${"Patio"}, ${"enviada"},
-      ${"Folio de patio de ejemplo."},
-      ${false}
-    )
-  `;
-  const fid = crypto.randomUUID();
-  await sql`
-    insert into findings (
-      id, inspection_id, org_id, component, damage, repair, loc_code, sort_order
-    ) values (
-      ${fid}, ${inspId}, ${orgId}, ${"LADO DERECHO"}, ${"ABOLLADO"},
-      ${"ENDEREZAR PANEL"}, ${"RXEW"}, ${0}
-    )
-  `;
+    ) values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`,
+    [
+      inspId,
+      userId,
+      actorName || "Inspector",
+      "HAMU2333567",
+      "Hapag-Lloyd",
+      "40HC",
+      "C",
+      "carrier",
+      "Inspección Express",
+      "Patio",
+      "enviada",
+      "Folio de patio de ejemplo.",
+      false,
+    ],
+  );
+  await sql.query(
+    `insert into ${T.findings} (
+      id, inspection_id, component, damage, repair, loc_code, sort_order
+    ) values ($1,$2,$3,$4,$5,$6,$7)`,
+    [crypto.randomUUID(), inspId, "LADO DERECHO", "ABOLLADO", "ENDEREZAR PANEL", "RXEW", 0],
+  );
 }
 
 /** Distinct Contri sample so the two patios never share container numbers. */
-async function seedContri(orgId: string, userId: string, actorName: string) {
-  const sql = await getSql();
-  const existing = await sql<{ c: number }>`
-    select count(*)::int as c from work_reports where org_id = ${orgId}
-  `;
+async function seedContri(sql: Sql, T: TenantTables, userId: string, actorName: string) {
+  const existing = await sql.query<{ c: number }>(`select count(*)::int as c from ${T.work_reports}`);
   if ((existing[0]?.c ?? 0) > 0) return;
 
   const reportId = crypto.randomUUID();
-  await sql`
-    insert into work_reports (
-      id, org_id, report_date, area, technicians, supervisor, notes, status, created_by
-    ) values (
-      ${reportId}, ${orgId}, ${"2026-08-21"}, ${"MR"},
-      ${"Jorge y Martín"}, ${"Ana Herrera"},
-      ${"Patio Contri — no comparte folios con Cerlan."},
-      ${"cerrado"}, ${userId}
-    )
-  `;
+  await sql.query(
+    `insert into ${T.work_reports} (
+      id, report_date, area, technicians, supervisor, notes, status, created_by
+    ) values ($1,$2,$3,$4,$5,$6,$7,$8)`,
+    [
+      reportId,
+      "2026-08-21",
+      "MR",
+      "Jorge y Martín",
+      "Ana Herrera",
+      "Patio Contri — no comparte folios con Cerlan.",
+      "cerrado",
+      userId,
+    ],
+  );
 
   const mrLines = [
     { container: "MSKU2091450", size: "40HC", line: "MAEU", desc: "Banda (Restos de carga)", loc: "", star: false },
@@ -162,36 +179,41 @@ async function seedContri(orgId: string, userId: string, actorName: string) {
   ];
   let seq = 1;
   for (const line of mrLines) {
-    await sql`
-      insert into work_report_lines (
-        id, report_id, org_id, seq, container_no, class_code, size_code, naviera,
+    await sql.query(
+      `insert into ${T.work_report_lines} (
+        id, report_id, seq, container_no, class_code, size_code, naviera,
         description, loc_code, unknown_ownership, missing_label
-      ) values (
-        ${crypto.randomUUID()}, ${reportId}, ${orgId}, ${seq}, ${line.container},
-        ${"C"}, ${line.size}, ${line.line}, ${line.desc}, ${line.loc},
-        ${line.star}, ${line.star}
-      )
-    `;
+      ) values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
+      [
+        crypto.randomUUID(),
+        reportId,
+        seq,
+        line.container,
+        "C",
+        line.size,
+        line.line,
+        line.desc,
+        line.loc,
+        line.star,
+        line.star,
+      ],
+    );
     seq += 1;
   }
 
   const entryId = crypto.randomUUID();
-  await sql`
-    insert into warehouse_entries (
-      id, org_id, folio, entry_date, location_name, received_from, invoice_ref,
+  await sql.query(
+    `insert into ${T.warehouse_entries} (
+      id, folio, entry_date, location_name, received_from, invoice_ref,
       received_by, notes, created_by
-    ) values (
-      ${entryId}, ${orgId}, ${"2204"}, ${"2026-08-21"}, ${"Contri"}, ${""}, ${""},
-      ${"Carmen Ortiz"}, ${"Entrada de almacén Contri."}, ${userId}
-    )
-  `;
-  await sql`
-    insert into warehouse_materials (
-      id, entry_id, org_id, qty, unit, code, article, seq
-    ) values (
-      ${crypto.randomUUID()}, ${entryId}, ${orgId}, ${12}, ${"LTS"}, ${"8x12"}, ${"blanco"}, ${1}
-    )
-  `;
+    ) values ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+    [entryId, "2204", "2026-08-21", "Contri", "", "", "Carmen Ortiz", "Entrada de almacén Contri.", userId],
+  );
+  await sql.query(
+    `insert into ${T.warehouse_materials} (id, entry_id, qty, unit, code, article, seq)
+     values ($1,$2,$3,$4,$5,$6,$7)`,
+    [crypto.randomUUID(), entryId, 12, "LTS", "8x12", "blanco", 1],
+  );
   const paintUnits = [
     { no: "MSKU7742210", size: "40HC", line: "MAEU" },
     { no: "TCLU1198004", size: "40HC", line: "OOLU" },
@@ -199,36 +221,41 @@ async function seedContri(orgId: string, userId: string, actorName: string) {
   ];
   let u = 1;
   for (const unit of paintUnits) {
-    await sql`
-      insert into warehouse_units (
-        id, entry_id, org_id, container_no, unit_code, size_code, naviera, treatment, seq
-      ) values (
-        ${crypto.randomUUID()}, ${entryId}, ${orgId}, ${unit.no}, ${"FX"},
-        ${unit.size}, ${unit.line}, ${"Acond."}, ${u}
-      )
-    `;
+    await sql.query(
+      `insert into ${T.warehouse_units} (
+        id, entry_id, container_no, unit_code, size_code, naviera, treatment, seq
+      ) values ($1,$2,$3,$4,$5,$6,$7,$8)`,
+      [crypto.randomUUID(), entryId, unit.no, "FX", unit.size, unit.line, "Acond.", u],
+    );
     u += 1;
   }
 
   const inspId = crypto.randomUUID();
-  await sql`
-    insert into inspections (
-      id, org_id, user_id, inspector_name, container_no, naviera, size_code, class_code,
+  await sql.query(
+    `insert into ${T.inspections} (
+      id, user_id, inspector_name, container_no, naviera, size_code, class_code,
       ownership, inspection_type, location_name, status, notes, missing_label
-    ) values (
-      ${inspId}, ${orgId}, ${userId}, ${actorName || "Inspector"},
-      ${"TCLU8873216"}, ${"OOCL"}, ${"40HC"}, ${"C"}, ${"merchant"},
-      ${"Inspección Express"}, ${"Patio Norte"}, ${"enviada"},
-      ${"Folio de patio Contri. Aislado de Cerlan."},
-      ${false}
-    )
-  `;
-  await sql`
-    insert into findings (
-      id, inspection_id, org_id, component, damage, repair, loc_code, sort_order
-    ) values (
-      ${crypto.randomUUID()}, ${inspId}, ${orgId}, ${"LADO IZQUIERDO"}, ${"ABOLLADO"},
-      ${"ENDEREZAR PANEL"}, ${"LXEW"}, ${0}
-    )
-  `;
+    ) values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`,
+    [
+      inspId,
+      userId,
+      actorName || "Inspector",
+      "TCLU8873216",
+      "OOCL",
+      "40HC",
+      "C",
+      "merchant",
+      "Inspección Express",
+      "Patio Norte",
+      "enviada",
+      "Folio de patio Contri. Aislado de Cerlan.",
+      false,
+    ],
+  );
+  await sql.query(
+    `insert into ${T.findings} (
+      id, inspection_id, component, damage, repair, loc_code, sort_order
+    ) values ($1,$2,$3,$4,$5,$6,$7)`,
+    [crypto.randomUUID(), inspId, "LADO IZQUIERDO", "ABOLLADO", "ENDEREZAR PANEL", "LXEW", 0],
+  );
 }

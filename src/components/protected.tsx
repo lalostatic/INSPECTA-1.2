@@ -1,11 +1,14 @@
 import { RedirectToSignIn } from "@/lib/auth/gates";
+import { signOut } from "@/lib/auth/client";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
 import { skipStorageKey } from "@/lib/billing";
 import { getSession } from "@/lib/server/tenant";
 import { useQuery } from "@tanstack/react-query";
 import { Navigate, useRouterState } from "@tanstack/react-router";
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { AppShell } from "./app-shell";
+import { Wordmark } from "./mark";
+import { Button } from "./ui/button";
 
 export function Protected({ children }: { children: ReactNode }) {
   const { user, isPending } = useCurrentUserState();
@@ -37,8 +40,17 @@ export function Protected({ children }: { children: ReactNode }) {
       </div>
     );
   }
+
+  const developer = Boolean(session.data?.developer);
   const membership = session.data?.membership;
+
+  if (developer && (path === "/autorizar" || !membership)) {
+    if (path !== "/autorizar") return <Navigate to="/autorizar" />;
+    return <>{children}</>;
+  }
+
   if (!membership) return <Navigate to="/onboarding" />;
+  if (!membership.authorized) return <PendingAuth name={membership.orgName} />;
 
   const billing = session.data?.billing;
   if (billing?.needsPaywall && path !== "/pago") {
@@ -53,5 +65,32 @@ export function Protected({ children }: { children: ReactNode }) {
     <AppShell membership={membership} billing={billing ?? null}>
       {children}
     </AppShell>
+  );
+}
+
+function PendingAuth({ name }: { name: string }) {
+  const [out, setOut] = useState(false);
+  return (
+    <main className="grid min-h-dvh place-items-center bg-paper px-5">
+      <div className="w-full max-w-md space-y-4 rounded-lg border border-line bg-card p-6 shadow-card">
+        <Wordmark />
+        <h1 className="font-display text-3xl tracking-wide text-navy">{name}</h1>
+        <p className="text-sm text-steel">
+          Este patio está dado de alta pero aún no está autorizado. El desarrollador de INSPECTA debe
+          habilitarlo para operar.
+        </p>
+        <Button
+          variant="secondary"
+          className="w-full"
+          disabled={out}
+          onClick={() => {
+            setOut(true);
+            void signOut("/login").catch(() => setOut(false));
+          }}
+        >
+          Cerrar sesión
+        </Button>
+      </div>
+    </main>
   );
 }

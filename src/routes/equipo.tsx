@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Field, Input, NativeSelect } from "@/components/ui/input";
 import { ALL_ROLES, MODULES, ROLE_LABEL, type Role } from "@/lib/catalog";
 import { formatMoney, type BillingSnapshot } from "@/lib/billing";
-import { getSession, listTeam, setModules, updateMemberRole, updateOrg } from "@/lib/server/tenant";
+import { getSession, listTeam, setModules, updateMemberRole, updateOrg, addTeamUser } from "@/lib/server/tenant";
 import { formatDate } from "@/lib/utils";
 import type { Membership } from "@/lib/types";
 
@@ -42,6 +42,10 @@ function EquipoForm({
   const [city, setCity] = useState(membership.city);
   const [mods, setMods] = useState(membership.modules);
   const domain = membership.emailDomain;
+  const [personName, setPersonName] = useState("");
+  const [personEmail, setPersonEmail] = useState("");
+  const [personPassword, setPersonPassword] = useState("");
+  const [personRole, setPersonRole] = useState<Role>("inspector");
 
   return (
     <div className="space-y-8">
@@ -60,13 +64,8 @@ function EquipoForm({
         </p>
         <p className="mt-1 text-xs text-steel">
           {domain
-            ? `Quien entra con correo @${domain} llega a este patio. Oficina, taller e inspector usan el mismo dominio.`
+            ? `Quien entra con correo @${domain} llega a este patio. La operación vive en su propia base; el administrador da de alta a cada persona.`
             : "Asigne correos de la empresa (admin@su-patio.mx) para aislar el patio por usuario."}
-        </p>
-        <p className="mt-4 text-xs font-medium uppercase tracking-wider text-steel">Código de invitación</p>
-        <p className="mt-1 font-mono text-xl tracking-[0.3em] text-navy">{membership.inviteCode}</p>
-        <p className="mt-1 text-xs text-steel">
-          Solo para correos personales (Gmail y similares). No cruza datos con otra empresa.
         </p>
       </section>
 
@@ -154,6 +153,66 @@ function EquipoForm({
 
       <section className="rounded-lg border border-line bg-card p-5 shadow-card">
         <h2 className="font-display text-xl tracking-wide text-navy">Personas</h2>
+        <p className="mt-1 text-sm text-steel">Alta interna. No hay registro público.</p>
+        {membership.role === "admin" ? (
+          <form
+            className="mt-4 grid gap-3 sm:grid-cols-2"
+            onSubmit={(e) => {
+              e.preventDefault();
+              void addTeamUser({
+                data: {
+                  name: personName,
+                  email: personEmail,
+                  password: personPassword,
+                  role: personRole,
+                },
+              })
+                .then(async () => {
+                  await qc.invalidateQueries({ queryKey: ["team"] });
+                  toast.success("Persona dada de alta");
+                  setPersonName("");
+                  setPersonEmail("");
+                  setPersonPassword("");
+                })
+                .catch((err: unknown) => toast.error(err instanceof Error ? err.message : "Error"));
+            }}
+          >
+            <Field label="Nombre">
+              <Input value={personName} onChange={(e) => setPersonName(e.target.value)} required />
+            </Field>
+            <Field label="Correo">
+              <Input
+                type="email"
+                value={personEmail}
+                onChange={(e) => setPersonEmail(e.target.value)}
+                required
+                placeholder={domain ? `nombre@${domain}` : "correo"}
+                className="font-mono"
+              />
+            </Field>
+            <Field label="Contraseña">
+              <Input
+                type="password"
+                value={personPassword}
+                onChange={(e) => setPersonPassword(e.target.value)}
+                required
+                minLength={8}
+              />
+            </Field>
+            <Field label="Rol">
+              <NativeSelect value={personRole} onChange={(e) => setPersonRole(e.target.value as Role)}>
+                {ALL_ROLES.map((r) => (
+                  <option key={r} value={r}>
+                    {ROLE_LABEL[r]}
+                  </option>
+                ))}
+              </NativeSelect>
+            </Field>
+            <div className="sm:col-span-2">
+              <Button type="submit">Dar de alta</Button>
+            </div>
+          </form>
+        ) : null}
         <ul className="mt-3 divide-y divide-line">
           {(team.data ?? []).map((row) => (
             <li key={row.userId} className="flex items-center gap-3 py-3">

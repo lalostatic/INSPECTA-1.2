@@ -1,18 +1,18 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { authMiddleware } from "@/lib/auth/middleware";
-import { ALL_ROLES, MODULES, asRole, defaultModules, type ModuleKey, type Role } from "@/lib/catalog";
+import { ALL_ROLES, asRole, defaultModules, type ModuleKey, type Role } from "@/lib/catalog";
 import { getSql } from "@/lib/db";
 import {
   isCompanyDomain,
-  orgNameFromDomain,
   parseEmail,
   roleFromLocal,
-  slugFromDomain,
 } from "@/lib/email-domain";
-import { assertOrgNotSuspended, billingForOrg, stampNewOrgBilling } from "@/lib/server/billing";
+import { isDeveloperEmail } from "@/lib/developer";
+import { createCredentialUser } from "@/lib/server/accounts";
+import { assertOrgNotSuspended, billingForOrg } from "@/lib/server/billing";
+import { ensureOrgTenant, schemaNameFromOrgId } from "@/lib/server/tenant-schema";
 import type { Membership, SessionPayload, TeamMember } from "@/lib/types";
-import { inviteCode, slugify } from "@/lib/utils";
 
 type OrgRow = {
   org_id: string;
@@ -22,6 +22,8 @@ type OrgRow = {
   slug: string;
   invite_code: string;
   email_domain: string | null;
+  authorized: boolean;
+  db_schema: string | null;
   user_id: string;
   display_name: string;
   role: string;
@@ -48,8 +50,8 @@ async function userRecord(userId: string): Promise<{ email: string; name: string
 async function findMembership(userId: string): Promise<Membership | null> {
   const sql = await getSql();
   const rows = await sql<OrgRow>`
-    select m.org_id, o.name, o.depot, o.city, o.slug, o.invite_code, o.email_domain,
-           m.user_id, m.display_name, m.role
+    select m.org_id, o.name, o.depot, o.city, o.slug, o.invite_code, o.email_domain, o.authorized,
+           o.db_schema, m.user_id, m.display_name, m.role
     from org_members m
     join organizations o on o.id = m.org_id
     where m.user_id = ${userId}
@@ -69,22 +71,13 @@ async function findMembership(userId: string): Promise<Membership | null> {
     slug: r.slug,
     inviteCode: r.invite_code,
     emailDomain: r.email_domain ?? "",
+    authorized: Boolean(r.authorized),
+    dbSchema: r.db_schema || schemaNameFromOrgId(r.org_id),
     userId: r.user_id,
     displayName: r.display_name,
     role: asRole(r.role),
     modules: mapModules(mods),
   };
-}
-
-async function insertDefaultModules(orgId: string) {
-  const sql = await getSql();
-  for (const mod of MODULES) {
-    await sql`
-      insert into org_modules (org_id, module_key, enabled)
-      values (${orgId}, ${mod.key}, ${true})
-      on conflict (org_id, module_key) do nothing
-    `;
-  }
 }
 
 async function addMember(orgId: string, userId: string, displayName: string, role: Role) {
@@ -104,38 +97,9 @@ async function findOrgByDomain(domain: string): Promise<string | null> {
   return rows[0]?.id ?? null;
 }
 
-async function createOrgForDomain(opts: {
-  domain: string;
-  userId: string;
-}): Promise<string> {
-  const sql = await getSql();
-  const existing = await findOrgByDomain(opts.domain);
-  if (existing) return existing;
-
-  const id = crypto.randomUUID();
-  let slug = slugFromDomain(opts.domain);
-  const taken = await sql<{ c: number }>`select count(*)::int as c from organizations where slug = ${slug}`;
-  if ((taken[0]?.c ?? 0) > 0) slug = `${slug}-${id.slice(0, 4)}`;
-  const name = orgNameFromDomain(opts.domain);
-  const code = inviteCode();
-  try {
-    await sql`
-      insert into organizations (id, slug, name, depot, city, invite_code, email_domain, created_by)
-      values (${id}, ${slug}, ${name}, ${""}, ${""}, ${code}, ${opts.domain}, ${opts.userId})
-    `;
-    await insertDefaultModules(id);
-    await stampNewOrgBilling(id);
-    return id;
-  } catch {
-    const raced = await findOrgByDomain(opts.domain);
-    if (raced) return raced;
-    throw new Error("No se pudo abrir el patio de ese correo");
-  }
-}
-
 /**
- * The signed-in user's email domain is the company key.
- * admin@cerlan.mx and admin@contri.mx never share a patio.
+ * Join an already-authorized patio by company email.
+ * Never opens a new company — that is the developer's job.
  */
 async function attachByEmailDomain(userId: string): Promise<Membership | null> {
   const user = await userRecord(userId);
@@ -147,12 +111,16 @@ async function attachByEmailDomain(userId: string): Promise<Membership | null> {
   const already = await sql<{ c: number }>`select count(*)::int as c from org_members where user_id = ${userId}`;
   if ((already[0]?.c ?? 0) > 0) return findMembership(userId);
 
-  const orgId = await createOrgForDomain({ domain: parsed.domain, userId });
-  const members = await sql<{ c: number }>`select count(*)::int as c from org_members where org_id = ${orgId}`;
-  const inferred = roleFromLocal(parsed.local);
-  const role: Role = inferred ?? ((members[0]?.c ?? 0) === 0 ? "admin" : "inspector");
+  const orgId = await findOrgByDomain(parsed.domain);
+  if (!orgId) return null;
+  const auth = await sql<{ authorized: boolean }>`
+    select authorized from organizations where id = ${orgId} limit 1
+  `;
+  if (!auth[0]?.authorized) return null;
+
+  const inferred = roleFromLocal(parsed.local) ?? "inspector";
   const displayName = user.name?.trim() || parsed.local;
-  await addMember(orgId, userId, displayName, role);
+  await addMember(orgId, userId, displayName, inferred);
   return findMembership(userId);
 }
 
@@ -165,8 +133,10 @@ async function loadMembership(userId: string): Promise<Membership | null> {
 export async function requireMembership(userId: string): Promise<Membership> {
   const m = await loadMembership(userId);
   if (!m) throw new Error("Sin empresa asignada");
+  if (!m.authorized) throw new Error("Este patio aún no está autorizado por el desarrollador.");
+  const dbSchema = await ensureOrgTenant(m.orgId);
   await assertOrgNotSuspended(m.orgId);
-  return m;
+  return { ...m, dbSchema };
 }
 
 export const getSession = createServerFn({ method: "GET" })
@@ -174,8 +144,17 @@ export const getSession = createServerFn({ method: "GET" })
   .handler(async ({ context }): Promise<SessionPayload> => {
     const user = await userRecord(context.userId);
     const membership = await loadMembership(context.userId);
+    if (membership?.authorized) {
+      membership.dbSchema = await ensureOrgTenant(membership.orgId);
+    }
     const billing = membership ? await billingForOrg(membership.orgId) : null;
-    return { userId: context.userId, email: user?.email ?? "", membership, billing };
+    return {
+      userId: context.userId,
+      email: user?.email ?? "",
+      developer: isDeveloperEmail(user?.email),
+      membership,
+      billing,
+    };
   });
 
 const createIn = z.object({
@@ -188,35 +167,10 @@ const createIn = z.object({
 export const createOrg = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .validator((input: unknown) => createIn.parse(input))
-  .handler(async ({ context, data }) => {
+  .handler(async ({ context }) => {
     const existing = await loadMembership(context.userId);
     if (existing) return existing;
-    const sql = await getSql();
-    const user = await userRecord(context.userId);
-    const parsed = parseEmail(user?.email);
-    const domain = parsed && isCompanyDomain(parsed.domain) ? parsed.domain : null;
-    if (domain) {
-      const attached = await attachByEmailDomain(context.userId);
-      if (attached) return attached;
-    }
-    const id = crypto.randomUUID();
-    let slug = slugify(data.name) || "patio";
-    const taken = await sql<{ c: number }>`select count(*)::int as c from organizations where slug = ${slug}`;
-    if ((taken[0]?.c ?? 0) > 0) slug = `${slug}-${id.slice(0, 4)}`;
-    const code = inviteCode();
-    await sql`
-      insert into organizations (id, slug, name, depot, city, invite_code, email_domain, created_by)
-      values (${id}, ${slug}, ${data.name}, ${data.depot}, ${data.city}, ${code}, ${domain}, ${context.userId})
-    `;
-    await sql`
-      insert into org_members (org_id, user_id, display_name, role)
-      values (${id}, ${context.userId}, ${data.displayName}, ${"admin"})
-    `;
-    await insertDefaultModules(id);
-    await stampNewOrgBilling(id);
-    const created = await findMembership(context.userId);
-    if (!created) throw new Error("No se pudo crear la empresa");
-    return created;
+    throw new Error("Las empresas nuevas las autoriza el desarrollador de INSPECTA.");
   });
 
 const joinIn = z.object({
@@ -237,6 +191,10 @@ export const joinOrg = createServerFn({ method: "POST" })
     `;
     const org = orgs[0];
     if (!org) throw new Error("Código de empresa no válido");
+    const flag = await sql<{ authorized: boolean }>`
+      select authorized from organizations where id = ${org.id} limit 1
+    `;
+    if (!flag[0]?.authorized) throw new Error("Ese patio aún no está autorizado.");
     await sql`
       insert into org_members (org_id, user_id, display_name, role)
       values (${org.id}, ${context.userId}, ${data.displayName}, ${"inspector"})
@@ -327,6 +285,44 @@ export const updateOrg = createServerFn({ method: "POST" })
     await sql`
       update organizations set name = ${data.name}, depot = ${data.depot}, city = ${data.city}
       where id = ${m.orgId}
+    `;
+    return { ok: true };
+  });
+
+const teamUserIn = z.object({
+  name: z.string().min(2).max(80),
+  email: z.string().email().max(120),
+  password: z.string().min(8).max(80),
+  role: z.enum(ALL_ROLES as [Role, ...Role[]]),
+});
+
+export const addTeamUser = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator((input: unknown) => teamUserIn.parse(input))
+  .handler(async ({ context, data }) => {
+    const m = await requireMembership(context.userId);
+    if (m.role !== "admin") throw new Error("Solo el administrador da de alta personas");
+    const email = data.email.trim().toLowerCase();
+    const parsed = parseEmail(email);
+    if (!parsed) throw new Error("Correo no válido");
+    if (m.emailDomain && parsed.domain !== m.emailDomain) {
+      throw new Error(`El correo debe ser @${m.emailDomain}`);
+    }
+    const { id } = await createCredentialUser({
+      name: data.name,
+      email,
+      password: data.password,
+    });
+    const sql = await getSql();
+    const other = await sql<{ org_id: string }>`
+      select org_id from org_members where user_id = ${id} and org_id <> ${m.orgId} limit 1
+    `;
+    if (other[0]) throw new Error("Ese correo ya pertenece a otro patio");
+    await sql`
+      insert into org_members (org_id, user_id, display_name, role)
+      values (${m.orgId}, ${id}, ${data.name}, ${data.role})
+      on conflict (org_id, user_id) do update
+        set display_name = excluded.display_name, role = excluded.role
     `;
     return { ok: true };
   });

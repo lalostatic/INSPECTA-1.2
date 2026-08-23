@@ -11,6 +11,8 @@ export type Membership = {
   slug: string;
   inviteCode: string;
   emailDomain: string;
+  authorized: boolean;
+  dbSchema: string;
   userId: string;
   displayName: string;
   role: Role;
@@ -20,6 +22,7 @@ export type Membership = {
 export type SessionPayload = {
   userId: string;
   email: string;
+  developer: boolean;
   membership: Membership | null;
   billing: BillingSnapshot | null;
 };

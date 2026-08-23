@@ -77,6 +77,7 @@ export function asRole(r: string): Role {
 
 export type ModuleKey = "inspeccion" | "mr" | "pintura";
 
+/** Feature flags per patio. New capabilities are modules — never a custom database per company. */
 export const MODULES: {
   key: ModuleKey;
   label: string;
