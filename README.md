@@ -2,18 +2,28 @@
 
 Patio, taller M&R y pintura. Cada empresa tiene **su propia base de operación**. El correo decide el patio (`admin@cerlan.mx` ≠ `admin@contri.mx`). No hay alta pública: las empresas las autoriza el desarrollador.
 
-**Sitio visual (abrir este enlace, no el repositorio):**  
+## Ver el producto
+
+**Sitio visual (GitHub Pages):**  
 **[https://lalostatic.github.io/INSPECTA-1.2/](https://lalostatic.github.io/INSPECTA-1.2/)**
 
-Esa dirección es el folleto de producto con capturas reales. GitHub Pages no corre el patio (no hay servidor ni base de datos ahí). El sistema operativo se despliega en un host con Postgres.
+**Código + ZIP:** [github.com/lalostatic/INSPECTA-1.2](https://github.com/lalostatic/INSPECTA-1.2) · [Descargar INSPECTA-1.2.zip](https://github.com/lalostatic/INSPECTA-1.2/releases/download/v1.2/INSPECTA-1.2.zip)
+
+GitHub Pages es el folleto de producto (fotos del patio y capturas reales). No corre el sistema operativo: el patio con login, cámara y cobro se despliega en un servidor con Postgres.
 
 Desarrollado por [@lalostatic](https://github.com/lalostatic)
 
 ![Inicio de sesión](docs/assets/login.jpg)
 
+![Mapa de puntos](docs/assets/mapa.jpg)
+
 ![Patio Cerlan](docs/assets/patio.jpg)
 
-![Mapa de puntos](docs/assets/mapa.jpg)
+![Inspecciones](docs/assets/inspecciones.jpg)
+
+![M&R](docs/assets/mr.jpg)
+
+![Pintura](docs/assets/pintura.jpg)
 
 ---
 
@@ -28,6 +38,8 @@ INSPECTA es un SaaS de patio de contenedores. Tres módulos, la misma estructura
 | Pintura | Folio, material y unidades acondicionadas. |
 
 Al tocar un punto del mapa se abre la cámara. Después de la foto se puede anotar el daño, o dejarlo en blanco.
+
+![Puertas](docs/assets/puertas.jpg)
 
 ![Equipo](docs/assets/equipo.jpg)
 
@@ -78,7 +90,7 @@ src/                  aplicación (pantallas, patio, cobro)
   routes/             inspección, mr, almacén, equipo, pago, autorizar
 migrations/           control (auth, empresas, cobro)
 migrations/tenant/    plantilla de cada patio (misma para todas)
-docs/                 sitio GitHub Pages (HTML + capturas)
+docs/                 sitio GitHub Pages (HTML + fotos + capturas)
 public/               foto del puerto, vistas del contenedor
 ```
 
