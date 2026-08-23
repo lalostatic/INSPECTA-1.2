@@ -2,9 +2,18 @@
 
 Patio, taller M&R y pintura. Cada empresa tiene **su propia base de operación**. El correo decide el patio (`admin@cerlan.mx` ≠ `admin@contri.mx`). No hay alta pública: las empresas las autoriza el desarrollador.
 
-**Sitio visual (GitHub Pages):** [https://lalostatic.github.io/INSPECTA-1.2/](https://lalostatic.github.io/INSPECTA-1.2/)
+**Sitio visual (abrir este enlace, no el repositorio):**  
+**[https://lalostatic.github.io/INSPECTA-1.2/](https://lalostatic.github.io/INSPECTA-1.2/)**
+
+Esa dirección es el folleto de producto con capturas reales. GitHub Pages no corre el patio (no hay servidor ni base de datos ahí). El sistema operativo se despliega en un host con Postgres.
 
 Desarrollado por [@lalostatic](https://github.com/lalostatic)
+
+![Inicio de sesión](docs/assets/login.jpg)
+
+![Patio Cerlan](docs/assets/patio.jpg)
+
+![Mapa de puntos](docs/assets/mapa.jpg)
 
 ---
 
@@ -19,6 +28,10 @@ INSPECTA es un SaaS de patio de contenedores. Tres módulos, la misma estructura
 | Pintura | Folio, material y unidades acondicionadas. |
 
 Al tocar un punto del mapa se abre la cámara. Después de la foto se puede anotar el daño, o dejarlo en blanco.
+
+![Equipo](docs/assets/equipo.jpg)
+
+![Autorizar empresas](docs/assets/autorizar.jpg)
 
 ## Versión 1.2
 
@@ -56,6 +69,19 @@ Hay dos capas. No se personaliza el esquema por cliente.
 
 El correo de la empresa selecciona el patio. Gmail y similares no abren empresa. `inspecta.mx` queda reservado al desarrollador.
 
+## Estructura del repositorio
+
+```
+src/                  aplicación (pantallas, patio, cobro)
+  components/         mapa, login, marco
+  lib/server/         patio, M&R, almacén, autorización, bases por empresa
+  routes/             inspección, mr, almacén, equipo, pago, autorizar
+migrations/           control (auth, empresas, cobro)
+migrations/tenant/    plantilla de cada patio (misma para todas)
+docs/                 sitio GitHub Pages (HTML + capturas)
+public/               foto del puerto, vistas del contenedor
+```
+
 ## Roles
 
 Administrador, oficina, inspector, taller M&R, pintura, supervisor. El administrador da de alta personas en Equipo (nombre, correo `@su-empresa.mx`, contraseña, rol).
@@ -74,14 +100,14 @@ La app operativa (login, patio, cámara, cobro) necesita servidor y Postgres. En
 
 1. Postgres (Neon u otro). `DATABASE_URL` lo inyecta el entorno de deploy — no se guarda un `.env` en el repo.
 2. Auth de correo y contraseña (Better Auth).
-3. `npm run build` aplica migraciones y genera el bundle (Vercel / Nitro).
+3. `npm install` y `npm run build` aplica migraciones y genera el bundle (Vercel / Nitro).
 
-GitHub Pages **no corre** el patio (no hay Node ni base de datos ahí). La página de este repositorio es el **sitio de producto** con capturas reales de la 1.2.
+GitHub Pages **no corre** el patio. La página de este repositorio es el **sitio de producto**.
 
 ```bash
 npm install
 npm run build
-npm run preview   # verificación local del bundle
+npm run preview
 ```
 
 Migraciones de control: `migrations/0001` … `0009`. Estructura de cada patio: `migrations/tenant/`. Al autorizar una empresa se crea su base con esa plantilla.
