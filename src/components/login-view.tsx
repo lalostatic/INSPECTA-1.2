@@ -1,6 +1,5 @@
 import { useState, type FormEvent } from "react";
 import { Navigate, useNavigate } from "@tanstack/react-router";
-import { Github } from "lucide-react";
 import { authClient } from "@/lib/auth/client";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
 import { clearBillingSkip } from "@/lib/billing";
@@ -9,7 +8,6 @@ import { Field, Input } from "@/components/ui/input";
 import { Wordmark } from "@/components/mark";
 
 const DEV_HANDLE = "@lalostatic";
-const DEV_GITHUB = "https://github.com/lalostatic";
 const DEV_WHATSAPP = "https://wa.me/525526594919";
 
 function WhatsAppIcon({ className }: { className?: string }) {
@@ -102,15 +100,6 @@ export function LoginView() {
 
       <p className="absolute bottom-5 right-5 z-10 flex items-center gap-2 text-xs text-paper/80">
         <span>desarrollado por {DEV_HANDLE}</span>
-        <a
-          href={DEV_GITHUB}
-          target="_blank"
-          rel="noreferrer"
-          className="grid size-8 place-items-center rounded-sm text-paper/80 hover:bg-paper/10 hover:text-paper"
-          aria-label="GitHub de lalostatic"
-        >
-          <Github className="size-4" />
-        </a>
         <a
           href={DEV_WHATSAPP}
           target="_blank"
