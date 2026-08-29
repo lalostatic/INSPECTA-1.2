@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1240 900" width="1240" height="900">
+  <rect width="1240" height="900" fill="#ffffff"/>
+  <text x="24" y="28" fill="#14202b" font-family="system-ui,sans-serif" font-size="13" font-weight="600" letter-spacing="1.6">INSPECCIÓN DE CHASIS · PLANO TÉCNICO</text>
+  <g id="elevacion" fill="none" stroke="#14202b" stroke-width="1.6">
+    <text x="24" y="58" fill="#5b6b75" font-size="11" font-family="system-ui">ELEVACIÓN LATERAL</text>
+    <path d="M70 150 L160 150 L210 128 L980 128 L1010 150 L1080 150 L1080 168 L1010 168 L980 188 L210 188 L160 168 L70 168 Z"/>
+    <path d="M210 128 L210 188"/>
+    <path d="M300 188 L300 250 M286 250 L314 250 M300 220 L318 228"/>
+    <circle cx="130" cy="168" r="5"/>
+    <circle cx="860" cy="232" r="42"/>
+    <circle cx="860" cy="232" r="16"/>
+    <circle cx="960" cy="232" r="42"/>
+    <circle cx="960" cy="232" r="16"/>
+    <line x1="818" y1="232" x2="1002" y2="232"/>
+    <rect x="1080" y="140" width="18" height="36"/>
+    <path d="M70 110 L1098 110" stroke="#9aa4ab" stroke-width="0.7"/>
+    <text x="520" y="102" fill="#5b6b75" font-size="10" font-family="system-ui">40'</text>
+  </g>
+  <g id="planta" fill="none" stroke="#14202b" stroke-width="1.6">
+    <text x="24" y="330" fill="#5b6b75" font-size="11" font-family="system-ui">PLANTA (VISTA SUPERIOR)</text>
+    <path d="M70 400 L70 520 L160 560 L1080 560 L1080 360 L160 360 Z"/>
+    <path d="M160 390 L1080 390 M160 530 L1080 530"/>
+    <path d="M220 390 L220 530 M300 390 L300 530 M400 390 L400 530 M500 390 L500 530 M600 390 L600 530 M700 390 L700 530 M800 390 L800 530 M900 390 L900 530"/>
+    <path d="M80 430 L160 390 M80 490 L160 530"/>
+    <rect x="88" y="432" width="50" height="56"/>
+    <rect x="292" y="348" width="28" height="24"/>
+    <rect x="292" y="548" width="28" height="24"/>
+    <path d="M306 372 L306 548"/>
+    <rect x="820" y="318" width="70" height="36" rx="6"/>
+    <rect x="900" y="318" width="70" height="36" rx="6"/>
+    <rect x="820" y="566" width="70" height="36" rx="6"/>
+    <rect x="900" y="566" width="70" height="36" rx="6"/>
+    <rect x="1064" y="360" width="16" height="200"/>
+  </g>
+  <g id="frente" fill="none" stroke="#14202b" stroke-width="1.6">
+    <text x="140" y="660" fill="#5b6b75" font-size="11" font-family="system-ui">FRENTE</text>
+    <rect x="120" y="676" width="320" height="22"/>
+    <rect x="150" y="698" width="260" height="90"/>
+    <rect x="168" y="788" width="50" height="70"/>
+    <rect x="342" y="788" width="50" height="70"/>
+    <circle cx="188" cy="724" r="10"/>
+    <circle cx="222" cy="724" r="10"/>
+    <rect x="250" y="714" width="70" height="20"/>
+  </g>
+  <g id="trasera" fill="none" stroke="#14202b" stroke-width="1.6">
+    <text x="620" y="660" fill="#5b6b75" font-size="11" font-family="system-ui">TRASERA</text>
+    <rect x="600" y="676" width="320" height="22"/>
+    <rect x="630" y="698" width="260" height="70"/>
+    <rect x="648" y="768" width="46" height="90"/>
+    <rect x="826" y="768" width="46" height="90"/>
+    <circle cx="668" cy="718" r="9"/>
+    <circle cx="852" cy="718" r="9"/>
+    <rect x="720" y="708" width="80" height="18"/>
+    <rect x="700" y="748" width="120" height="8"/>
+  </g>
+</svg>
