@@ -3,10 +3,10 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>INSPECTA — demo</title>
-    <meta name="description" content="Demo de INSPECTA: patio, taller M&R y pintura. Inspección con mapa y foto." />
-    <meta property="og:title" content="INSPECTA — demo" />
-    <meta property="og:description" content="Patio, taller M&R y pintura." />
+    <title>INSPECTAMX — inspección de patio, contenedor y chasis</title>
+    <meta name="description" content="INSPECTAMX: inspección de contenedores y chasis con mapa de puntos, taller M&R y pintura. El flujo lo marca el ingreso diario al patio." />
+    <meta property="og:title" content="INSPECTAMX — demo de producto" />
+    <meta property="og:description" content="Inspección de contenedor y chasis, M&R y pintura. Un patio por empresa." />
     <meta property="og:image" content="./assets/login.jpg" />
     <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -15,20 +15,25 @@
     <style>
       :root {
         --navy: #0e2433; --navy-deep: #08151f; --ink: #14202b; --paper: #f3f1ec;
-        --teal: #1f8a96; --teal-dark: #176e78; --steel: #5b6b75; --line: #d5d0c6; --card: #fffcf7;
+        --teal: #1f8a96; --teal-dark: #176e78; --steel: #5b6b75; --line: #d5d0c6;
+        --card: #fffcf7; --rust: #b54a3a;
       }
       * { box-sizing: border-box; }
       html, body { margin: 0; }
       body { background: var(--paper); color: var(--ink); font-family: "IBM Plex Sans", system-ui, sans-serif; line-height: 1.5; }
       img { max-width: 100%; display: block; height: auto; background: #d9d4c8; }
-      a { color: inherit; text-decoration: none; }
+      a { color: inherit; }
       .wrap { width: min(1080px, calc(100% - 2rem)); margin-inline: auto; }
       header.top { position: sticky; top: 0; z-index: 20; background: var(--navy); color: var(--paper); }
-      header.top .inner { display: flex; align-items: center; justify-content: space-between; height: 56px; }
-      .brand { display: flex; align-items: center; gap: 10px; }
+      header.top .inner { display: flex; align-items: center; justify-content: space-between; gap: 1rem; height: 56px; }
+      .brand { display: flex; align-items: center; gap: 10px; text-decoration: none; }
       .brand svg { width: 32px; height: 32px; }
       .brand span { font-family: "Barlow Condensed", sans-serif; letter-spacing: 0.16em; font-weight: 600; font-size: 1.15rem; }
-      .demo-badge { font-size: 0.72rem; letter-spacing: 0.18em; text-transform: uppercase; color: #8fd0d8; border: 1px solid rgba(143,208,216,.4); padding: 0.35rem 0.7rem; border-radius: 999px; }
+      .nav { display: flex; align-items: center; gap: 0.75rem; }
+      .demo-badge { font-size: 0.72rem; letter-spacing: 0.18em; text-transform: uppercase; color: #8fd0d8; border: 1px solid rgba(143,208,216,.4); padding: 0.35rem 0.7rem; border-radius: 999px; text-decoration: none; }
+      .btn { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; padding: 0 1.1rem; border-radius: 6px; font-weight: 600; font-size: 0.95rem; text-decoration: none; }
+      .btn-teal { background: var(--teal); color: #fff; }
+      .btn-ghost { color: var(--paper); border: 1px solid rgba(243,241,236,.35); }
       .hero { position: relative; min-height: 72vh; display: grid; place-items: end stretch; color: var(--paper); overflow: hidden; background: var(--navy-deep); }
       .hero img.bg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center 40%; }
       .hero .veil { position: absolute; inset: 0; background: linear-gradient(90deg, rgba(8,21,31,0.92) 0%, rgba(14,36,51,0.7) 50%, rgba(14,36,51,0.28) 100%); }
@@ -36,26 +41,35 @@
       .kicker { font-size: 0.72rem; font-weight: 600; letter-spacing: 0.22em; text-transform: uppercase; color: #8fd0d8; margin: 0 0 0.75rem; }
       h1 { font-family: "Barlow Condensed", sans-serif; font-size: clamp(2.6rem, 7vw, 5rem); line-height: 0.95; margin: 0 0 1rem; }
       h2 { font-family: "Barlow Condensed", sans-serif; font-size: clamp(1.8rem, 4vw, 2.5rem); color: var(--navy); margin: 0 0 0.5rem; }
-      .lede { max-width: 36rem; font-size: 1.05rem; color: rgba(243,241,236,0.9); margin: 0 0 1.5rem; }
-      .sub { color: var(--steel); margin: 0 0 1.75rem; max-width: 40rem; }
+      .lede { max-width: 38rem; font-size: 1.05rem; color: rgba(243,241,236,0.9); margin: 0 0 1.5rem; }
+      .sub { color: var(--steel); margin: 0 0 1.75rem; max-width: 42rem; }
+      .actions { display: flex; flex-wrap: wrap; gap: 0.75rem; }
       section { padding: 4rem 0; }
       section.alt { background: #fff; border-block: 1px solid var(--line); }
       .grid-3 { display: grid; gap: 1rem; grid-template-columns: repeat(3, 1fr); }
+      .grid-2 { display: grid; gap: 1rem; grid-template-columns: 1fr 1fr; }
       .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 1.2rem 1.25rem; }
       .card h3 { margin: 0 0 0.35rem; color: var(--navy); }
       .card p { margin: 0; color: var(--steel); font-size: 0.95rem; }
+      .card .num { font-family: "Barlow Condensed", sans-serif; font-size: 2rem; color: var(--teal-dark); margin: 0 0 0.25rem; }
       .shots { display: grid; gap: 1.1rem; grid-template-columns: 1fr 1fr; }
       .shot { margin: 0; border-radius: 12px; overflow: hidden; border: 1px solid var(--line); background: var(--navy); }
       .shot.wide { grid-column: 1 / -1; }
       .shot img { width: 100%; aspect-ratio: 16 / 10; object-fit: cover; object-position: top center; }
+      .shot img.contain { object-fit: contain; background: #fff; aspect-ratio: 16 / 11; }
       .shot figcaption { padding: 0.65rem 1rem; font-size: 0.8rem; color: var(--steel); background: var(--card); }
       .phones { display: grid; gap: 1rem; grid-template-columns: 1fr 1fr; max-width: 520px; }
       .phone { border-radius: 28px; overflow: hidden; border: 8px solid var(--navy); }
       .phone img { width: 100%; aspect-ratio: 390 / 844; object-fit: cover; object-position: top; }
+      ol.flow { margin: 0; padding-left: 1.2rem; color: var(--steel); }
+      ol.flow li { margin-bottom: 0.55rem; }
+      .note { font-size: 0.9rem; color: var(--steel); }
       footer { background: var(--navy-deep); color: rgba(243,241,236,0.75); padding: 1.75rem 0; font-size: 0.85rem; }
+      footer a { color: #8fd0d8; }
       @media (max-width: 840px) {
-        .grid-3, .shots, .phones { grid-template-columns: 1fr; }
+        .grid-3, .grid-2, .shots, .phones { grid-template-columns: 1fr; }
         .shot.wide { grid-column: auto; }
+        .nav .demo-badge { display: none; }
       }
     </style>
   </head>
@@ -69,83 +83,136 @@
             <rect x="4" y="13" width="24" height="6" fill="#F3F1EC" />
             <rect x="4" y="22" width="24" height="6" fill="#B54A3A" />
           </svg>
-          <span>INSPECTA</span>
+          <span>INSPECTAMX</span>
         </a>
-        <span class="demo-badge">Versión demo</span>
+        <div class="nav">
+          <span class="demo-badge">Demo de producto</span>
+          <a class="btn btn-ghost" href="https://inspectamx.com">inspectamx.com</a>
+        </div>
       </div>
     </header>
-
     <section class="hero" id="inicio">
       <img class="bg" src="./assets/puerto.jpg" width="1600" height="900" alt="Patio de contenedores" />
       <div class="veil"></div>
       <div class="wrap copy">
-        <p class="kicker">Demo 1.2</p>
-        <h1>Patio, taller M&R<br />y pintura.</h1>
-        <p class="lede">Inspección con mapa y foto. Reporte de taller. Entrada de almacén. Desde la computadora o el teléfono.</p>
-      </div>
-    </section>
-
-    <section>
-      <div class="wrap">
-        <p class="kicker" style="color: var(--teal-dark)">Qué hace</p>
-        <h2>Tres apartados.</h2>
-        <p class="sub">Lo que se anota hoy en papel, en digital.</p>
-        <div class="grid-3">
-          <article class="card"><h3>Inspección</h3><p>Número de unidad, mapa y foto. El daño es opcional.</p></article>
-          <article class="card"><h3>M&R</h3><p>Fecha, contenedor y trabajo realizado.</p></article>
-          <article class="card"><h3>Pintura</h3><p>Folio, material y unidades acondicionadas.</p></article>
+        <p class="kicker">Patio · contenedor · chasis</p>
+        <h1>Inspección, taller<br />y pintura en un solo lugar.</h1>
+        <p class="lede">El inspector toca el punto en el mapa, toma la foto y cierra el folio. El flujo lo marca el ingreso del día, no un pipeline fijo.</p>
+        <div class="actions">
+          <a class="btn btn-teal" href="#producto">Ver capturas</a>
+          <a class="btn btn-ghost" href="https://inspectamx.com">Ir al sistema</a>
         </div>
       </div>
     </section>
-
-    <section class="alt" id="producto">
+    <section>
+      <div class="wrap">
+        <p class="kicker" style="color: var(--teal-dark)">Qué hace</p>
+        <h2>Un patio. Dos mapas. El mismo criterio.</h2>
+        <p class="sub">Cada empresa tiene su base. No hay alta pública: el administrador da de alta a su gente con correo y contraseña.</p>
+        <div class="grid-3">
+          <article class="card"><h3>Contenedor</h3><p>Mapa de puntos: puertas, interior y laterales. Toque y cámara. El daño es opcional.</p></article>
+          <article class="card"><h3>Chasis</h3><p>Plano técnico (elevación, planta, frente y trasera). Inspección de chasis, no de vehículo.</p></article>
+          <article class="card"><h3>Taller y pintura</h3><p>M&R del backlog del día y acondicionado según el cupo del patio.</p></article>
+        </div>
+      </div>
+    </section>
+    <section class="alt" id="flujo">
+      <div class="wrap">
+        <p class="kicker" style="color: var(--teal-dark)">Operación</p>
+        <h2>El día lo define lo que entra al patio.</h2>
+        <p class="sub">Gate-in de contenedores y chasis. Se inspecciona, se repara y se pinta lo que llegó — no un flujo rígido de principio a fin.</p>
+        <ol class="flow">
+          <li><strong>Ingreso</strong> — se registran las unidades del día.</li>
+          <li><strong>Inspección</strong> — mapa de puntos + foto en contenedor o chasis.</li>
+          <li><strong>Taller M&R</strong> — se atiende el backlog (~12 unidades/día de referencia).</li>
+          <li><strong>Pintura</strong> — acondicionado del cupo (5 a 7 contenedores/día).</li>
+          <li><strong>Cierre</strong> — folio, firmas y reporte; salida o stack.</li>
+        </ol>
+        <div class="grid-2" style="margin-top: 1.5rem;">
+          <article class="card">
+            <p class="num">5 – 7</p>
+            <h3>Pintura / acondicionado</h3>
+            <p>Contenedores por día. Referencia operativa, no un tope del sistema.</p>
+          </article>
+          <article class="card">
+            <p class="num">~12</p>
+            <h3>Taller M&R</h3>
+            <p>Contenedores o chasis por día. Referencia operativa.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+    <section id="producto">
       <div class="wrap">
         <p class="kicker" style="color: var(--teal-dark)">Vista previa</p>
-        <h2>Así se ve el sistema.</h2>
-        <p class="sub">Capturas de la versión demo. Los datos son de ejemplo.</p>
+        <h2>Así se ve en el patio.</h2>
+        <p class="sub">Capturas de la demo. Los folios son de ejemplo. Esta página no pide contraseña: el sistema con cámara vive en inspectamx.com.</p>
         <div class="shots">
           <figure class="shot wide">
             <img src="./assets/login.jpg" width="1440" height="900" alt="Inicio de sesión" />
-            <figcaption>Inicio de sesión. Correo y contraseña.</figcaption>
+            <figcaption>Inicio de sesión. Solo correo y contraseña de la empresa.</figcaption>
           </figure>
           <figure class="shot wide">
-            <img src="./assets/mapa.jpg" width="1440" height="900" alt="Mapa de puntos" />
-            <figcaption>Mapa de puntos. Al tocar un punto se abre la cámara.</figcaption>
+            <img src="./assets/mapa.jpg" width="1440" height="900" alt="Mapa de puntos de contenedor" />
+            <figcaption>Mapa de contenedor. Al tocar un punto se abre la cámara.</figcaption>
+          </figure>
+          <figure class="shot wide">
+            <img class="contain" src="./assets/chassis-plano.svg" width="1240" height="900" alt="Plano técnico de chasis" />
+            <figcaption>Inspección de chasis: plano técnico con puntos tocables (elevación, planta, frente y trasera).</figcaption>
           </figure>
           <figure class="shot">
-            <img src="./assets/patio.jpg" width="1440" height="900" alt="Inicio" />
-            <figcaption>Inicio de operación.</figcaption>
+            <img src="./assets/patio.jpg" width="1440" height="900" alt="Inicio de operación" />
+            <figcaption>Inicio: plantillas, folios e indicadores del día.</figcaption>
           </figure>
           <figure class="shot">
-            <img src="./assets/inspecciones.jpg" width="1440" height="900" alt="Inspecciones" />
-            <figcaption>Folios de inspección.</figcaption>
+            <img src="./assets/inspecciones.jpg" width="1440" height="900" alt="Folios de inspección" />
+            <figcaption>Folios de inspección del patio.</figcaption>
           </figure>
           <figure class="shot">
-            <img src="./assets/mr.jpg" width="1440" height="900" alt="M&R" />
-            <figcaption>Reporte de trabajo del taller.</figcaption>
+            <img src="./assets/mr.jpg" width="1440" height="900" alt="Reporte M&R" />
+            <figcaption>Reporte de taller M&R.</figcaption>
           </figure>
           <figure class="shot">
             <img src="./assets/pintura.jpg" width="1440" height="900" alt="Pintura" />
             <figcaption>Entrada de almacén / pintura.</figcaption>
           </figure>
+          <figure class="shot">
+            <img src="./assets/puertas.jpg" width="1440" height="900" alt="Vista puertas" />
+            <figcaption>Vista de puertas del contenedor.</figcaption>
+          </figure>
+          <figure class="shot">
+            <img src="./assets/lateral.jpg" width="1440" height="900" alt="Vista lateral" />
+            <figcaption>Vista lateral izquierda o derecha.</figcaption>
+          </figure>
         </div>
       </div>
     </section>
-
-    <section>
+    <section class="alt">
       <div class="wrap">
         <p class="kicker" style="color: var(--teal-dark)">En el muelle</p>
         <h2>También en el teléfono.</h2>
-        <p class="sub">La misma operación en el patio.</p>
+        <p class="sub">La misma operación en patio, sin escritorio.</p>
         <div class="phones">
           <div class="phone"><img src="./assets/login-mobile.jpg" width="390" height="844" alt="Login en teléfono" /></div>
           <div class="phone"><img src="./assets/patio-mobile.jpg" width="390" height="844" alt="Patio en teléfono" /></div>
         </div>
       </div>
     </section>
-
+    <section>
+      <div class="wrap">
+        <p class="kicker" style="color: var(--teal-dark)">Para un patio</p>
+        <h2>Cómo se entrega.</h2>
+        <p class="sub">Un patio, un dominio de correo, cuentas que crea el administrador. Sin «crear cuenta» en internet.</p>
+        <div class="grid-3">
+          <article class="card"><h3>Aislado</h3><p>Cada empresa tiene su esquema. Cerlan no ve folios de Contri.</p></article>
+          <article class="card"><h3>Roles</h3><p>Admin, oficina, inspector, taller, pintura y consulta.</p></article>
+          <article class="card"><h3>Evidencia</h3><p>Foto comprimida, firma y folio listo para compartir.</p></article>
+        </div>
+        <p class="note" style="margin-top: 1.5rem;">Sistema en operación: <a href="https://inspectamx.com" style="color: var(--teal-dark)">inspectamx.com</a>. Esta página es el folleto para mostrar el producto.</p>
+      </div>
+    </section>
     <footer>
-      <div class="wrap">INSPECTA · versión demo · desarrollado por lalostatic</div>
+      <div class="wrap">INSPECTAMX · demo visual · <a href="https://inspectamx.com">inspectamx.com</a> · ingreso diario al patio</div>
     </footer>
   </body>
 </html>
